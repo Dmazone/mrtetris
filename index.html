@@ -5,353 +5,359 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>MrTetris</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{
-    background:#08081a;
-    min-height:100dvh;
-    display:flex;flex-direction:column;align-items:center;
-    font-family:'Segoe UI',sans-serif;
-    overflow:hidden;
-    touch-action:none;
-    user-select:none;
-  }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{
+  background:#08081a;height:100dvh;max-height:100dvh;
+  overflow:hidden;font-family:'Segoe UI',sans-serif;
+  touch-action:none;user-select:none;
+}
+@keyframes shimmer{0%{background-position:0%}100%{background-position:300%}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 
-  /* ── 헤더 ── */
-  #header{
-    width:100%;max-width:360px;
-    display:flex;align-items:center;justify-content:space-between;
-    padding:6px 10px 4px;
-    gap:6px;
-    flex-shrink:0;
-  }
-  .stat{
-    display:flex;flex-direction:column;align-items:center;
-    background:rgba(255,255,255,0.05);
-    border:1px solid rgba(100,200,255,0.15);
-    border-radius:8px;
-    padding:4px 10px;
-    min-width:60px;
-  }
-  .stat-label{
-    font-size:9px;letter-spacing:1.5px;
-    color:rgba(150,200,255,0.5);text-transform:uppercase;
-  }
-  .stat-val{
-    font-size:18px;font-weight:700;color:#fff;
-    text-shadow:0 0 10px rgba(100,200,255,0.6);
-  }
-  .stat-next{
-    display:flex;flex-direction:column;align-items:center;
-    background:rgba(255,255,255,0.05);
-    border:1px solid rgba(100,200,255,0.15);
-    border-radius:8px;
-    padding:4px 8px;
-  }
-  #nextCanvas{display:block;}
+/* ── 모드 선택 화면 ── */
+#mode-select{
+  position:fixed;inset:0;
+  background:linear-gradient(180deg,#06061a 0%,#0a0a24 100%);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:22px;z-index:100;
+}
+#ms-title{
+  font-size:40px;font-weight:900;letter-spacing:6px;
+  background:linear-gradient(90deg,#4ff,#a0f,#ff4,#4ff);
+  background-size:300%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:shimmer 3s linear infinite;
+}
+#ms-tag{font-size:11px;color:rgba(150,200,255,0.45);letter-spacing:3px;margin-top:-14px;}
+#ms-label{font-size:14px;color:rgba(200,220,255,0.65);letter-spacing:1px;margin-top:4px;}
+.mode-btn{
+  width:250px;height:88px;border-radius:18px;
+  display:flex;align-items:center;gap:18px;padding:0 22px;
+  color:#fff;cursor:pointer;border:none;
+  transition:transform 0.1s,filter 0.1s;-webkit-touch-callout:none;
+}
+.mode-btn:active{transform:scale(0.93);filter:brightness(1.25);}
+.ms-icon{font-size:36px;line-height:1;flex-shrink:0;}
+.ms-texts{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+.ms-name{font-size:21px;font-weight:800;letter-spacing:2px;}
+.ms-hint{font-size:11px;opacity:0.65;letter-spacing:0.5px;}
+#btn-ms-dpad{
+  background:linear-gradient(135deg,rgba(40,60,180,0.9),rgba(18,28,100,0.95));
+  border:2px solid rgba(100,150,255,0.45);
+  box-shadow:0 8px 28px rgba(60,80,255,0.25),inset 0 1px 0 rgba(255,255,255,0.1);
+}
+#btn-ms-touch{
+  background:linear-gradient(135deg,rgba(20,100,60,0.9),rgba(8,55,28,0.95));
+  border:2px solid rgba(50,200,120,0.45);
+  box-shadow:0 8px 28px rgba(30,180,100,0.2),inset 0 1px 0 rgba(255,255,255,0.1);
+}
 
-  /* ── 게임 보드 ── */
-  #canvas-container{
-    position:relative;
-    border:1.5px solid rgba(100,200,255,0.25);
-    border-radius:6px;
-    overflow:hidden;
-    box-shadow:0 0 30px rgba(100,200,255,0.15);
-    flex-shrink:0;
-  }
-  #canvas-container canvas{position:absolute;top:0;left:0;}
-  #bgCanvas{z-index:0;}
-  #gameCanvas{z-index:5;}
-  #fxCanvas{z-index:10;pointer-events:none;}
+/* ── 게임 화면 ── */
+#game-screen{
+  display:none;flex-direction:column;
+  align-items:center;height:100dvh;overflow:hidden;
+}
 
-  /* ── 오버레이 ── */
-  #overlay{
-    position:absolute;inset:0;
-    background:rgba(5,5,20,0.9);
-    display:flex;flex-direction:column;
-    align-items:center;justify-content:center;
-    z-index:20;text-align:center;color:#fff;
-  }
-  #overlay h1{
-    font-size:30px;font-weight:900;letter-spacing:4px;
-    background:linear-gradient(90deg,#4ff,#a0f,#4ff);
-    background-size:200%;
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    animation:shimmer 2s linear infinite;margin-bottom:6px;
-  }
-  #overlay .sub{font-size:11px;color:rgba(200,220,255,0.6);letter-spacing:2px;margin-bottom:16px;}
-  #overlay .score-big{font-size:40px;font-weight:900;color:#ffd700;text-shadow:0 0 20px #ffd700;margin-bottom:4px;display:none;}
-  #overlay .press-key{font-size:12px;color:rgba(200,220,255,0.5);animation:blink 1.2s ease-in-out infinite;}
-  @keyframes shimmer{0%{background-position:0%}100%{background-position:200%}}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+/* ── 헤더 ── */
+#header{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:5px 8px 3px;gap:4px;flex-shrink:0;
+}
+.stat{
+  display:flex;flex-direction:column;align-items:center;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(100,200,255,0.12);
+  border-radius:8px;padding:3px 8px;min-width:50px;
+}
+.stat-label{font-size:8px;letter-spacing:1.5px;color:rgba(150,200,255,0.5);text-transform:uppercase;}
+.stat-val{font-size:16px;font-weight:700;color:#fff;text-shadow:0 0 10px rgba(100,200,255,0.5);}
+#next-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(100,200,255,0.12);
+  border-radius:8px;padding:3px 6px;
+}
+#next-wrap span{font-size:8px;letter-spacing:1px;color:rgba(150,200,255,0.5);text-transform:uppercase;}
+#nextCanvas{display:block;}
 
-  /* ── 컨트롤 탭 ── */
-  #ctrl-tabs{
-    display:flex;gap:8px;padding:6px 0 4px;
-    flex-shrink:0;
-  }
-  .tab{
-    padding:6px 20px;
-    background:rgba(255,255,255,0.06);
-    border:1px solid rgba(100,200,255,0.2);
-    border-radius:20px;color:rgba(200,220,255,0.5);
-    font-size:12px;font-weight:600;letter-spacing:1px;
-    cursor:pointer;transition:all 0.15s;
-  }
-  .tab.active{
-    background:rgba(100,150,255,0.2);
-    border-color:rgba(100,200,255,0.5);
-    color:#fff;
-    box-shadow:0 0 12px rgba(100,150,255,0.3);
-  }
+/* ── 게임 보드 ── */
+#canvas-wrap{
+  position:relative;
+  border:1.5px solid rgba(100,200,255,0.2);border-radius:6px;
+  overflow:hidden;box-shadow:0 0 24px rgba(100,200,255,0.1);flex-shrink:0;
+}
+#canvas-wrap canvas{position:absolute;top:0;left:0;}
+#bgCanvas{z-index:0;}#gameCanvas{z-index:5;}#fxCanvas{z-index:10;pointer-events:none;}
 
-  /* ── D-PAD 컨트롤 ── */
-  #ctrl-dpad-panel{
-    display:flex;align-items:center;justify-content:space-between;
-    width:100%;max-width:360px;
-    padding:4px 10px 8px;
-    gap:12px;
-    flex-shrink:0;
-  }
-  /* 십자키 영역 */
-  #dpad-grid{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    grid-template-rows:repeat(2,1fr);
-    gap:6px;
-    width:168px;
-  }
-  .dpad-btn{
-    width:52px;height:52px;
-    background:linear-gradient(145deg,rgba(60,80,160,0.7),rgba(30,40,100,0.9));
-    border:1.5px solid rgba(100,150,255,0.35);
-    border-radius:12px;
-    color:#fff;font-size:20px;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-    box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
-    transition:transform 0.08s,background 0.08s;
-    -webkit-touch-callout:none;
-  }
-  .dpad-btn:active,
-  .dpad-btn.pressed{
-    transform:scale(0.92);
-    background:linear-gradient(145deg,rgba(80,120,255,0.8),rgba(50,70,200,0.9));
-    box-shadow:0 2px 6px rgba(0,0,0,0.3),0 0 16px rgba(80,120,255,0.4);
-  }
-  /* 십자키 레이아웃: col 1-3, row 1-2
-     row1: empty | ▲ | empty
-     row2: ◀ | ▽(soft) | ▶   */
-  #btn-up    {grid-column:2;grid-row:1;}
-  #btn-left  {grid-column:1;grid-row:2;}
-  #btn-soft  {grid-column:2;grid-row:2;font-size:14px;} /* center = soft drop */
-  #btn-right {grid-column:3;grid-row:2;}
+/* ── 오버레이 ── */
+#overlay{
+  position:absolute;inset:0;background:rgba(5,5,20,0.88);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:20;text-align:center;color:#fff;gap:10px;
+}
+#ov-title{
+  font-size:26px;font-weight:900;letter-spacing:4px;
+  background:linear-gradient(90deg,#4ff,#a0f,#4ff);background-size:200%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:shimmer 2s linear infinite;
+}
+#ov-sub{font-size:11px;color:rgba(200,220,255,0.55);letter-spacing:2px;}
+#final-score{font-size:38px;font-weight:900;color:#ffd700;text-shadow:0 0 20px #ffd700;display:none;}
+#press-hint{font-size:12px;color:rgba(200,220,255,0.5);animation:blink 1.2s ease-in-out infinite;}
+#ov-change-mode{
+  padding:7px 18px;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(200,200,255,0.2);border-radius:20px;
+  font-size:11px;color:rgba(200,220,255,0.6);cursor:pointer;display:none;
+  -webkit-touch-callout:none;
+}
+#ov-change-mode:active{background:rgba(255,255,255,0.15);}
 
-  /* 액션 버튼 영역 */
-  #action-btns{
-    display:flex;flex-direction:column;gap:8px;
-  }
-  .action-btn{
-    width:70px;height:52px;
-    border-radius:14px;
-    color:#fff;font-size:12px;font-weight:700;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:2px;cursor:pointer;
-    -webkit-touch-callout:none;
-    box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
-    transition:transform 0.08s,background 0.08s;
-  }
-  .action-btn:active,
-  .action-btn.pressed{transform:scale(0.92);}
-  .action-btn .btn-icon{font-size:20px;line-height:1;}
-  .action-btn .btn-label{font-size:9px;letter-spacing:1px;opacity:0.75;}
+/* ── D-PAD ── */
+#ctrl-dpad{
+  display:none;align-items:center;justify-content:space-between;
+  width:100%;padding:4px 10px 6px;gap:10px;flex-shrink:0;
+}
+#dpad-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  grid-template-rows:repeat(2,1fr);
+  gap:7px;
+}
+.dpad-btn{
+  background:linear-gradient(145deg,rgba(50,70,160,0.85),rgba(22,32,100,0.95));
+  border:1.5px solid rgba(100,150,255,0.35);border-radius:12px;
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:22px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.12);
+  transition:transform 0.07s,background 0.07s;-webkit-touch-callout:none;
+}
+.dpad-btn:active,.dpad-btn.pressed{
+  transform:scale(0.91);
+  background:linear-gradient(145deg,rgba(80,120,255,0.9),rgba(50,70,200,0.95));
+  box-shadow:0 2px 6px rgba(0,0,0,0.3),0 0 16px rgba(80,120,255,0.4);
+}
+#btn-up   {grid-column:2;grid-row:1;}
+#btn-left {grid-column:1;grid-row:2;}
+#btn-soft {grid-column:2;grid-row:2;font-size:11px;line-height:1.3;}
+#btn-right{grid-column:3;grid-row:2;}
+#action-btns{display:flex;flex-direction:column;gap:7px;}
+.action-btn{
+  border-radius:14px;color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
+  transition:transform 0.07s;-webkit-touch-callout:none;
+}
+.action-btn:active,.action-btn.pressed{transform:scale(0.91);}
+.btn-icon{font-size:22px;line-height:1;}
+.btn-label{font-size:9px;letter-spacing:1px;opacity:0.7;}
+#btn-rot{background:linear-gradient(145deg,rgba(100,25,180,0.85),rgba(60,10,120,0.95));border:1.5px solid rgba(160,80,255,0.4);}
+#btn-rot:active,#btn-rot.pressed{background:linear-gradient(145deg,rgba(140,60,255,0.9),rgba(90,25,200,0.95));box-shadow:0 0 16px rgba(140,60,255,0.5);}
+#btn-drop{background:linear-gradient(145deg,rgba(180,70,0,0.85),rgba(110,40,0,0.95));border:1.5px solid rgba(255,130,20,0.4);}
+#btn-drop:active,#btn-drop.pressed{background:linear-gradient(145deg,rgba(255,110,10,0.9),rgba(190,70,0,0.95));box-shadow:0 0 16px rgba(255,130,20,0.5);}
 
-  #btn-rot{
-    background:linear-gradient(145deg,rgba(100,30,180,0.8),rgba(60,15,120,0.9));
-    border:1.5px solid rgba(160,80,255,0.4);
-  }
-  #btn-rot:active,#btn-rot.pressed{
-    background:linear-gradient(145deg,rgba(140,60,255,0.9),rgba(90,30,200,0.9));
-    box-shadow:0 2px 6px rgba(0,0,0,0.3),0 0 16px rgba(140,60,255,0.5);
-  }
-  #btn-drop{
-    background:linear-gradient(145deg,rgba(180,80,0,0.8),rgba(120,50,0,0.9));
-    border:1.5px solid rgba(255,140,30,0.4);
-  }
-  #btn-drop:active,#btn-drop.pressed{
-    background:linear-gradient(145deg,rgba(255,120,20,0.9),rgba(200,80,0,0.9));
-    box-shadow:0 2px 6px rgba(0,0,0,0.3),0 0 16px rgba(255,140,30,0.5);
-  }
-
-  /* ── 터치 모드 안내 ── */
-  #ctrl-touch-panel{
-    display:none;
-    width:100%;max-width:360px;
-    padding:8px 10px 10px;
-    flex-shrink:0;
-  }
-  .touch-guide{
-    display:flex;justify-content:space-around;
-    background:rgba(255,255,255,0.04);
-    border:1px solid rgba(100,200,255,0.1);
-    border-radius:10px;
-    padding:10px 6px;
-  }
-  .tg-item{
-    display:flex;flex-direction:column;align-items:center;gap:4px;
-    font-size:11px;color:rgba(180,220,255,0.6);
-  }
-  .tg-icon{font-size:22px;}
-  .tg-txt{font-size:9px;letter-spacing:0.5px;text-align:center;}
+/* ── 터치 가이드 ── */
+#ctrl-touch{display:none;width:100%;padding:5px 10px 8px;flex-shrink:0;}
+.touch-guide{
+  display:flex;justify-content:space-around;
+  background:rgba(255,255,255,0.03);border:1px solid rgba(100,200,255,0.1);
+  border-radius:10px;padding:8px 4px;
+}
+.tg-item{display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(180,220,255,0.55);}
+.tg-icon{font-size:20px;}
+.tg-txt{font-size:9px;text-align:center;line-height:1.3;}
 </style>
 </head>
 <body>
 
-<!-- 헤더 -->
-<div id="header">
-  <div class="stat"><span class="stat-label">Score</span><span class="stat-val" id="score-val">0</span></div>
-  <div class="stat"><span class="stat-label">Level</span><span class="stat-val" id="level-val">1</span></div>
-  <div class="stat"><span class="stat-label">Lines</span><span class="stat-val" id="lines-val">0</span></div>
-  <div class="stat-next">
-    <span class="stat-label" style="font-size:9px;letter-spacing:1.5px;color:rgba(150,200,255,0.5);">Next</span>
-    <canvas id="nextCanvas" width="80" height="44"></canvas>
-  </div>
+<!-- 모드 선택 -->
+<div id="mode-select">
+  <div id="ms-title">MRTETRIS</div>
+  <div id="ms-tag">▲ BLOCKS RISE FROM BOTTOM ▲</div>
+  <div id="ms-label">조작 방식을 선택하세요</div>
+  <button class="mode-btn" id="btn-ms-dpad">
+    <span class="ms-icon">🕹️</span>
+    <span class="ms-texts">
+      <span class="ms-name">D-PAD</span>
+      <span class="ms-hint">고정 버튼으로 조작</span>
+    </span>
+  </button>
+  <button class="mode-btn" id="btn-ms-touch">
+    <span class="ms-icon">👆</span>
+    <span class="ms-texts">
+      <span class="ms-name">TOUCH</span>
+      <span class="ms-hint">스와이프 · 탭으로 조작</span>
+    </span>
+  </button>
 </div>
 
-<!-- 게임 보드 -->
-<div id="canvas-container">
-  <canvas id="bgCanvas"></canvas>
-  <canvas id="gameCanvas"></canvas>
-  <canvas id="fxCanvas"></canvas>
-  <div id="overlay">
-    <h1 id="ov-title">MRTETRIS</h1>
-    <div class="sub" id="ov-sub">▲ 아래서 위로 ▲</div>
-    <div class="score-big" id="final-score"></div>
-    <div class="press-key" id="press-hint">화면 탭으로 시작</div>
+<!-- 게임 화면 -->
+<div id="game-screen">
+  <div id="header">
+    <div class="stat"><span class="stat-label">Score</span><span class="stat-val" id="score-val">0</span></div>
+    <div class="stat"><span class="stat-label">Level</span><span class="stat-val" id="level-val">1</span></div>
+    <div class="stat"><span class="stat-label">Lines</span><span class="stat-val" id="lines-val">0</span></div>
+    <div id="next-wrap"><span>Next</span><canvas id="nextCanvas" width="72" height="40"></canvas></div>
   </div>
-</div>
-
-<!-- 컨트롤 선택 탭 -->
-<div id="ctrl-tabs">
-  <button class="tab active" id="tab-dpad">🕹️ D-PAD</button>
-  <button class="tab" id="tab-touch">👆 TOUCH</button>
-</div>
-
-<!-- D-PAD 컨트롤 -->
-<div id="ctrl-dpad-panel">
-  <div id="dpad-grid">
-    <!-- row1: 위(빠른올리기) -->
-    <div></div>
-    <button class="dpad-btn" id="btn-up">▲</button>
-    <div></div>
-    <!-- row2: 좌 / 중(soft=반스텝빠름) / 우 -->
-    <button class="dpad-btn" id="btn-left">◀</button>
-    <button class="dpad-btn" id="btn-soft" style="font-size:11px;line-height:1.1">FAST<br>▲</button>
-    <button class="dpad-btn" id="btn-right">▶</button>
+  <div id="canvas-wrap">
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="gameCanvas"></canvas>
+    <canvas id="fxCanvas"></canvas>
+    <div id="overlay">
+      <div id="ov-title">MRTETRIS</div>
+      <div id="ov-sub">▲ 아래서 위로 ▲</div>
+      <div id="final-score"></div>
+      <div id="press-hint">화면 탭으로 시작</div>
+      <div id="ov-change-mode">🔄 조작 방식 변경</div>
+    </div>
   </div>
-  <div id="action-btns">
-    <button class="action-btn" id="btn-rot">
-      <span class="btn-icon">↺</span>
-      <span class="btn-label">ROTATE</span>
-    </button>
-    <button class="action-btn" id="btn-drop">
-      <span class="btn-icon">⚡</span>
-      <span class="btn-label">DROP</span>
-    </button>
+  <div id="ctrl-dpad">
+    <div id="dpad-grid">
+      <div></div><button class="dpad-btn" id="btn-up">▲</button><div></div>
+      <button class="dpad-btn" id="btn-left">◀</button>
+      <button class="dpad-btn" id="btn-soft" style="font-size:11px;line-height:1.3">FAST<br>▲</button>
+      <button class="dpad-btn" id="btn-right">▶</button>
+    </div>
+    <div id="action-btns">
+      <button class="action-btn" id="btn-rot"><span class="btn-icon">↺</span><span class="btn-label">ROTATE</span></button>
+      <button class="action-btn" id="btn-drop"><span class="btn-icon">⚡</span><span class="btn-label">DROP</span></button>
+    </div>
   </div>
-</div>
-
-<!-- 터치 안내 -->
-<div id="ctrl-touch-panel">
-  <div class="touch-guide">
-    <div class="tg-item"><span class="tg-icon">↔</span><span class="tg-txt">스와이프<br>이동</span></div>
-    <div class="tg-item"><span class="tg-icon">👆</span><span class="tg-txt">탭<br>회전</span></div>
-    <div class="tg-item"><span class="tg-icon">↑</span><span class="tg-txt">위스와이프<br>즉시착지</span></div>
-    <div class="tg-item"><span class="tg-icon">↕</span><span class="tg-txt">길게+드래그<br>연속이동</span></div>
+  <div id="ctrl-touch">
+    <div class="touch-guide">
+      <div class="tg-item"><span class="tg-icon">↔</span><span class="tg-txt">스와이프<br>이동</span></div>
+      <div class="tg-item"><span class="tg-icon">👆</span><span class="tg-txt">탭<br>회전</span></div>
+      <div class="tg-item"><span class="tg-icon">↑</span><span class="tg-txt">위스와이프<br>즉시착지</span></div>
+      <div class="tg-item"><span class="tg-icon">↕</span><span class="tg-txt">길게드래그<br>연속이동</span></div>
+    </div>
   </div>
 </div>
 
 <script>
 "use strict";
-// ─── 화면 크기에 따른 BLOCK 계산 ──────────────────────────────────────────────
-const COLS = 10, ROWS = 20;
-const avail = Math.min(window.innerWidth, 360);
-const BLOCK = Math.max(24, Math.floor((avail - 4) / COLS));
-const W = COLS * BLOCK, H = ROWS * BLOCK;
+const COLS=10,ROWS=20;
+let BLOCK=30,W=COLS*BLOCK,H=ROWS*BLOCK;
+let ctrlMode=null;
+let bgCtx=null,ctx=null,fxCtx=null,nxtCtx=null;
+let loopStarted=false;
 
-// ─── 캔버스 세팅 ─────────────────────────────────────────────────────────────
-const container = document.getElementById('canvas-container');
-container.style.width  = W + 'px';
-container.style.height = H + 'px';
-['bgCanvas','gameCanvas','fxCanvas'].forEach(id => {
-  const c = document.getElementById(id);
-  c.width = W; c.height = H;
-});
-const bgCtx  = document.getElementById('bgCanvas').getContext('2d');
-const ctx    = document.getElementById('gameCanvas').getContext('2d');
-const fxCtx  = document.getElementById('fxCanvas').getContext('2d');
-const nxtCtx = document.getElementById('nextCanvas').getContext('2d');
-
-// ─── 테트로미노 ───────────────────────────────────────────────────────────────
-const PIECES = {
-  I:{shape:[[1,1,1,1]],          color:'#00f5ff'},
-  O:{shape:[[1,1],[1,1]],        color:'#ffd600'},
-  T:{shape:[[0,1,0],[1,1,1]],    color:'#d500f9'},
-  S:{shape:[[0,1,1],[1,1,0]],    color:'#00e676'},
-  Z:{shape:[[1,1,0],[0,1,1]],    color:'#ff1744'},
-  J:{shape:[[1,0,0],[1,1,1]],    color:'#2979ff'},
-  L:{shape:[[0,0,1],[1,1,1]],    color:'#ff6d00'},
+// 테트로미노
+const PIECES={
+  I:{shape:[[1,1,1,1]],color:'#00f5ff'},
+  O:{shape:[[1,1],[1,1]],color:'#ffd600'},
+  T:{shape:[[0,1,0],[1,1,1]],color:'#d500f9'},
+  S:{shape:[[0,1,1],[1,1,0]],color:'#00e676'},
+  Z:{shape:[[1,1,0],[0,1,1]],color:'#ff1744'},
+  J:{shape:[[1,0,0],[1,1,1]],color:'#2979ff'},
+  L:{shape:[[0,0,1],[1,1,1]],color:'#ff6d00'},
 };
-const PIECE_KEYS = Object.keys(PIECES);
+const PKEYS=Object.keys(PIECES);
 
-// ─── 게임 상태 ────────────────────────────────────────────────────────────────
-let board = Array.from({length:ROWS},()=>Array(COLS).fill(0));
-let cur = null, curX = 0, curY = 0, nextPiece = null;
-let score = 0, level = 1, lines = 0;
-let gameRunning = false, gamePaused = false, gameOver = false;
-let dropInterval, lastDrop;
-let shakeFrames = 0, shakeAmt = 0, shakeX = 0, shakeY = 0;
-let particles = [], flashRows = [], flashTimer = 0;
-let flashAlpha = 0;
-let bgStars = [];
-let ctrlMode = 'dpad'; // 'dpad' | 'touch'
+// 상태
+let board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+let cur=null,curX=0,curY=0,nextPiece=null;
+let score=0,level=1,lines=0;
+let gameRunning=false,gamePaused=false,gameOver=false;
+let dropInterval=800,lastDrop=0;
+let shakeFrames=0,shakeAmt=0,shakeX=0,shakeY=0;
+let particles=[],flashRows=[],flashTimer=0,flashAlpha=0;
+let bgStars=[];
 
-// ─── 별 배경 ─────────────────────────────────────────────────────────────────
+// ── 모드 선택 ──────────────────────────────────────────────────────────
+document.getElementById('btn-ms-dpad').addEventListener('click',()=>startWithMode('dpad'));
+document.getElementById('btn-ms-touch').addEventListener('click',()=>startWithMode('touch'));
+document.getElementById('ov-change-mode').addEventListener('click',e=>{
+  e.stopPropagation();
+  gameRunning=false;gameOver=false;
+  document.getElementById('game-screen').style.display='none';
+  document.getElementById('mode-select').style.display='flex';
+});
+
+function startWithMode(mode){
+  ctrlMode=mode;
+  document.getElementById('mode-select').style.display='none';
+
+  // 화면 크기 기반 BLOCK 계산
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const headerH=58;
+  const ctrlH=mode==='dpad'?158:70;
+  const margin=10;
+  const availH=vh-headerH-ctrlH-margin;
+  const availW=Math.min(vw,420)-4;
+  BLOCK=Math.max(18,Math.min(Math.floor(availH/ROWS),Math.floor(availW/COLS),42));
+  W=COLS*BLOCK; H=ROWS*BLOCK;
+
+  // D-PAD 버튼 크기 조정
+  const bs=Math.max(44,Math.min(BLOCK+8,62));
+  document.getElementById('dpad-grid').style.width=(bs*3+7*2)+'px';
+  document.querySelectorAll('.dpad-btn').forEach(el=>{el.style.width=bs+'px';el.style.height=bs+'px';});
+  document.querySelectorAll('.action-btn').forEach(el=>{el.style.width=(bs+16)+'px';el.style.height=bs+'px';});
+
+  // 캔버스 초기화
+  const wrap=document.getElementById('canvas-wrap');
+  wrap.style.width=W+'px'; wrap.style.height=H+'px';
+  ['bgCanvas','gameCanvas','fxCanvas'].forEach(id=>{
+    const c=document.getElementById(id);c.width=W;c.height=H;
+  });
+  bgCtx=document.getElementById('bgCanvas').getContext('2d');
+  ctx  =document.getElementById('gameCanvas').getContext('2d');
+  fxCtx=document.getElementById('fxCanvas').getContext('2d');
+  nxtCtx=document.getElementById('nextCanvas').getContext('2d');
+
+  initBgStars();
+
+  // 컨트롤 표시
+  document.getElementById('ctrl-dpad').style.display=mode==='dpad'?'flex':'none';
+  document.getElementById('ctrl-touch').style.display=mode==='touch'?'block':'none';
+
+  // 게임 화면
+  document.getElementById('game-screen').style.display='flex';
+
+  // 오버레이
+  const ov=document.getElementById('overlay');
+  ov.style.display='flex';
+  document.getElementById('ov-title').textContent='MRTETRIS';
+  document.getElementById('ov-sub').textContent='▲ 아래서 위로 ▲';
+  document.getElementById('final-score').style.display='none';
+  document.getElementById('press-hint').textContent='화면 탭으로 시작';
+  document.getElementById('ov-change-mode').style.display='block';
+
+  lastDrop=performance.now();
+  if(!loopStarted){loopStarted=true;requestAnimationFrame(loop);}
+}
+
+// ── 별 ─────────────────────────────────────────────────────────────────
 function initBgStars(){
-  bgStars = [];
+  bgStars=[];
   for(let i=0;i<70;i++) bgStars.push({
-    x:Math.random()*W, y:Math.random()*H,
+    x:Math.random()*W,y:Math.random()*H,
     r:Math.random()*1.4+0.3,
-    a:Math.random(), da:(Math.random()-0.5)*0.012,
+    a:Math.random(),da:(Math.random()-0.5)*0.012,
     dy:-(Math.random()*0.25+0.08),
   });
 }
 
-// ─── 초기화 ──────────────────────────────────────────────────────────────────
+// ── 게임 ────────────────────────────────────────────────────────────────
 function emptyBoard(){return Array.from({length:ROWS},()=>Array(COLS).fill(0));}
-
 function newGame(){
-  board=emptyBoard(); score=0; level=1; lines=0;
-  gameRunning=true; gamePaused=false; gameOver=false;
-  particles=[]; flashRows=[]; flashTimer=0; shakeFrames=0; flashAlpha=0;
-  nextPiece=randomPiece(); spawnPiece();
+  board=emptyBoard();score=0;level=1;lines=0;
+  gameRunning=true;gamePaused=false;gameOver=false;
+  particles=[];flashRows=[];flashTimer=0;shakeFrames=0;flashAlpha=0;
+  nextPiece=randomPiece();spawnPiece();
   updateHUD();
   document.getElementById('overlay').style.display='none';
 }
-
 function randomPiece(){
-  const k=PIECE_KEYS[Math.floor(Math.random()*PIECE_KEYS.length)];
+  const k=PKEYS[Math.floor(Math.random()*PKEYS.length)];
   const p=PIECES[k];
   return {shape:p.shape.map(r=>[...r]),color:p.color,key:k};
 }
-
 function spawnPiece(){
-  cur=nextPiece; nextPiece=randomPiece(); drawNext();
+  cur=nextPiece;nextPiece=randomPiece();drawNext();
   curY=ROWS-cur.shape.length;
   curX=Math.floor((COLS-cur.shape[0].length)/2);
   if(collides(cur.shape,curX,curY)) triggerGameOver();
 }
-
-// ─── 충돌 ────────────────────────────────────────────────────────────────────
 function collides(shape,ox,oy){
   for(let r=0;r<shape.length;r++)
     for(let c=0;c<shape[r].length;c++)
@@ -362,8 +368,6 @@ function collides(shape,ox,oy){
       }
   return false;
 }
-
-// ─── 회전 ────────────────────────────────────────────────────────────────────
 function rotate(shape){
   const R=shape.length,C=shape[0].length;
   const out=Array.from({length:C},()=>Array(R).fill(0));
@@ -371,118 +375,89 @@ function rotate(shape){
   return out;
 }
 function tryRotate(){
+  if(!gameRunning||gamePaused) return;
   const r=rotate(cur.shape);
-  for(const kick of[0,-1,1,-2,2]){
+  for(const kick of[0,-1,1,-2,2])
     if(!collides(r,curX+kick,curY)){cur.shape=r;curX+=kick;return;}
-  }
 }
-
-// ─── 이동 ────────────────────────────────────────────────────────────────────
-function moveLeft()  {if(!collides(cur.shape,curX-1,curY)) curX--;}
-function moveRight() {if(!collides(cur.shape,curX+1,curY)) curX++;}
-function moveUp()    {if(!collides(cur.shape,curX,curY-1)){curY--;return true;}return false;}
-
-function softDrop(){if(!moveUp()) lock();}
-function hardDrop(){while(!collides(cur.shape,curX,curY-1)) curY--;lock();}
-
-// ─── 고정 + 행 삭제 ──────────────────────────────────────────────────────────
+function moveLeft(){if(!gameRunning||gamePaused)return;if(!collides(cur.shape,curX-1,curY))curX--;}
+function moveRight(){if(!gameRunning||gamePaused)return;if(!collides(cur.shape,curX+1,curY))curX++;}
+function moveUp(){if(!collides(cur.shape,curX,curY-1)){curY--;return true;}return false;}
+function softDrop(){if(!gameRunning||gamePaused)return;if(!moveUp())lock();}
+function hardDrop(){if(!gameRunning||gamePaused)return;while(!collides(cur.shape,curX,curY-1))curY--;lock();}
 function lock(){
   for(let r=0;r<cur.shape.length;r++)
     for(let c=0;c<cur.shape[r].length;c++)
       if(cur.shape[r][c]) board[curY+r][curX+c]=cur.color;
-  triggerShake(6,5);
-  checkLines();
-  spawnPiece();
-  lastDrop=performance.now();
+  triggerShake(6,5);checkLines();spawnPiece();lastDrop=performance.now();
 }
-
 function checkLines(){
   const full=[];
   for(let r=0;r<ROWS;r++) if(board[r].every(c=>c!==0)) full.push(r);
   if(!full.length) return;
-  flashRows=[...full]; flashTimer=12;
+  flashRows=[...full];flashTimer=12;
   for(const r of full) spawnRowParticles(r);
   full.sort((a,b)=>a-b);
-  for(const r of full){
-    board.splice(r,1);
-    board.push(Array(COLS).fill(0));
-  }
+  for(const r of full){board.splice(r,1);board.push(Array(COLS).fill(0));}
   const gained=[0,100,300,500,800][full.length]*level;
-  score+=gained; lines+=full.length; level=Math.floor(lines/10)+1;
-  updateHUD();
-  triggerShake(14,9);
+  score+=gained;lines+=full.length;level=Math.floor(lines/10)+1;
+  updateHUD();triggerShake(14,9);
   if(gained>=500) triggerFlash();
 }
-
 function triggerGameOver(){
-  gameRunning=false; gameOver=true;
-  const ov=document.getElementById('overlay');
-  ov.style.display='flex';
+  gameRunning=false;gameOver=true;
+  const ov=document.getElementById('overlay');ov.style.display='flex';
   document.getElementById('ov-title').textContent='GAME OVER';
   document.getElementById('ov-sub').textContent='최종 점수';
   const sf=document.getElementById('final-score');
-  sf.style.display='block'; sf.textContent=score.toLocaleString();
+  sf.style.display='block';sf.textContent=score.toLocaleString();
   document.getElementById('press-hint').textContent='탭으로 재시작';
+  document.getElementById('ov-change-mode').style.display='block';
 }
-
 function updateHUD(){
   document.getElementById('score-val').textContent=score.toLocaleString();
   document.getElementById('level-val').textContent=level;
   document.getElementById('lines-val').textContent=lines;
 }
 
-// ─── 이펙트 ──────────────────────────────────────────────────────────────────
+// ── 이펙트 ──────────────────────────────────────────────────────────────
 function triggerShake(f,a){if(f>shakeFrames){shakeFrames=f;shakeAmt=a;}}
 function updateShake(){
   if(shakeFrames>0){
     const p=shakeFrames/10;
-    shakeX=(Math.random()-0.5)*shakeAmt*p;
-    shakeY=(Math.random()-0.5)*shakeAmt*p;
+    shakeX=(Math.random()-0.5)*shakeAmt*p;shakeY=(Math.random()-0.5)*shakeAmt*p;
     shakeFrames--;
-  } else {shakeX=0;shakeY=0;}
+  }else{shakeX=0;shakeY=0;}
 }
 function triggerFlash(){flashAlpha=0.55;}
 function updateFlash(){if(flashAlpha>0) flashAlpha-=0.045;}
-
 function spawnRowParticles(row){
   const y=row*BLOCK+BLOCK/2;
   for(let c=0;c<COLS;c++){
-    const x=c*BLOCK+BLOCK/2;
-    const col=board[row][c]||'#fff';
+    const x=c*BLOCK+BLOCK/2,col=board[row][c]||'#fff';
     for(let i=0;i<7;i++){
-      const a=Math.PI*2*i/7+(Math.random()-0.5)*0.5;
-      const sp=2+Math.random()*5;
-      particles.push({
-        x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
-        color:col,alpha:1,size:3+Math.random()*4,
-        decay:0.027+Math.random()*0.018,
-        type:Math.random()<0.4?'star':'circle',
-        rot:Math.random()*Math.PI*2,rotV:(Math.random()-0.5)*0.3,
-      });
+      const a=Math.PI*2*i/7+(Math.random()-0.5)*0.5,sp=2+Math.random()*5;
+      particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+        color:col,alpha:1,size:3+Math.random()*4,decay:0.027+Math.random()*0.018,
+        type:Math.random()<0.4?'star':'circle',rot:Math.random()*Math.PI*2,rotV:(Math.random()-0.5)*0.3});
     }
   }
-  for(let i=0;i<25;i++){
-    particles.push({
-      x:Math.random()*W,y:y+(Math.random()-0.5)*BLOCK,
+  for(let i=0;i<25;i++)
+    particles.push({x:Math.random()*W,y:y+(Math.random()-0.5)*BLOCK,
       vx:(Math.random()-0.5)*7,vy:(Math.random()-0.5)*5,
       color:['#fff','#ffd700','#ff6','#0ff','#f9f'][Math.floor(Math.random()*5)],
       alpha:1,size:1.5+Math.random()*2,decay:0.04+Math.random()*0.02,
-      type:'circle',rot:0,rotV:0,
-    });
-  }
+      type:'circle',rot:0,rotV:0});
 }
 function updateParticles(){
-  for(const p of particles){
-    p.x+=p.vx;p.y+=p.vy;p.vx*=0.93;p.vy*=0.93;p.vy+=0.09;
-    p.alpha-=p.decay;p.rot+=p.rotV;
-  }
+  for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vx*=0.93;p.vy*=0.93;p.vy+=0.09;p.alpha-=p.decay;p.rot+=p.rotV;}
   particles=particles.filter(p=>p.alpha>0);
 }
 function drawParticles(){
   for(const p of particles){
     fxCtx.save();fxCtx.globalAlpha=Math.max(0,p.alpha);
     fxCtx.translate(p.x,p.y);fxCtx.rotate(p.rot);fxCtx.fillStyle=p.color;
-    if(p.type==='star') drawStar(fxCtx,0,0,p.size,p.size*0.42,5);
+    if(p.type==='star')drawStar(fxCtx,0,0,p.size,p.size*0.42,5);
     else{fxCtx.beginPath();fxCtx.arc(0,0,p.size,0,Math.PI*2);fxCtx.fill();}
     fxCtx.restore();
   }
@@ -496,52 +471,32 @@ function drawStar(c2,cx,cy,ro,ri,pts){
   c2.closePath();c2.fill();
 }
 
-// ─── 헬퍼 ────────────────────────────────────────────────────────────────────
+// ── 그리기 헬퍼 ──────────────────────────────────────────────────────────
 function hexToRgb(hex){
-  hex=hex.replace('#','');
-  if(hex.length===3) hex=hex.split('').map(h=>h+h).join('');
-  const n=parseInt(hex,16);
-  return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+  hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(h=>h+h).join('');
+  const n=parseInt(hex,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};
 }
-function lighten(hex,a){const c=hexToRgb(hex);return `rgb(${Math.min(255,c.r+a)},${Math.min(255,c.g+a)},${Math.min(255,c.b+a)})`;}
-function darken(hex,a){const c=hexToRgb(hex);return `rgb(${Math.max(0,c.r-a)},${Math.max(0,c.g-a)},${Math.max(0,c.b-a)})`;}
+function lighten(hex,a){const c=hexToRgb(hex);return`rgb(${Math.min(255,c.r+a)},${Math.min(255,c.g+a)},${Math.min(255,c.b+a)})`;}
+function darken(hex,a){const c=hexToRgb(hex);return`rgb(${Math.max(0,c.r-a)},${Math.max(0,c.g-a)},${Math.max(0,c.b-a)})`;}
 function roundRect(c2,x,y,w,h,r){
   c2.beginPath();
   c2.moveTo(x+r,y);c2.lineTo(x+w-r,y);c2.quadraticCurveTo(x+w,y,x+w,y+r);
   c2.lineTo(x+w,y+h-r);c2.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
   c2.lineTo(x+r,y+h);c2.quadraticCurveTo(x,y+h,x,y+h-r);
-  c2.lineTo(x,y+r);c2.quadraticCurveTo(x,y,x+r,y);
-  c2.closePath();
+  c2.lineTo(x,y+r);c2.quadraticCurveTo(x,y,x+r,y);c2.closePath();
 }
-
-// ─── 블록 그리기 ──────────────────────────────────────────────────────────────
 function drawBlock(c2,x,y,color,alpha=1,ghost=false){
-  const px=x*BLOCK,py=y*BLOCK;
-  c2.save();c2.globalAlpha=alpha;
-  if(ghost){
-    c2.strokeStyle=color;c2.lineWidth=2;c2.globalAlpha=alpha*0.3;
-    c2.strokeRect(px+2,py+2,BLOCK-4,BLOCK-4);
-    c2.restore();return;
-  }
+  const px=x*BLOCK,py=y*BLOCK;c2.save();c2.globalAlpha=alpha;
+  if(ghost){c2.strokeStyle=color;c2.lineWidth=2;c2.globalAlpha=alpha*0.3;c2.strokeRect(px+2,py+2,BLOCK-4,BLOCK-4);c2.restore();return;}
   const g=c2.createLinearGradient(px,py,px+BLOCK,py+BLOCK);
   g.addColorStop(0,lighten(color,55));g.addColorStop(1,darken(color,35));
-  c2.fillStyle=g;
-  c2.beginPath();roundRect(c2,px+1,py+1,BLOCK-2,BLOCK-2,4);c2.fill();
-  c2.fillStyle='rgba(255,255,255,0.2)';
-  c2.beginPath();roundRect(c2,px+3,py+3,BLOCK-8,(BLOCK-8)*0.4,2);c2.fill();
+  c2.fillStyle=g;c2.beginPath();roundRect(c2,px+1,py+1,BLOCK-2,BLOCK-2,4);c2.fill();
+  c2.fillStyle='rgba(255,255,255,0.2)';c2.beginPath();roundRect(c2,px+3,py+3,BLOCK-8,(BLOCK-8)*0.4,2);c2.fill();
   c2.strokeStyle=lighten(color,70);c2.lineWidth=1.2;c2.globalAlpha=alpha*0.55;
   c2.beginPath();roundRect(c2,px+1.5,py+1.5,BLOCK-3,BLOCK-3,4);c2.stroke();
   c2.restore();
 }
-
-// ─── 고스트 ──────────────────────────────────────────────────────────────────
-function ghostY(){
-  let gy=curY;
-  while(!collides(cur.shape,curX,gy-1)) gy--;
-  return gy;
-}
-
-// ─── 배경 ────────────────────────────────────────────────────────────────────
+function ghostY(){let gy=curY;while(!collides(cur.shape,curX,gy-1))gy--;return gy;}
 function drawBg(){
   bgCtx.clearRect(0,0,W,H);
   const g=bgCtx.createLinearGradient(0,0,0,H);
@@ -558,25 +513,20 @@ function drawBg(){
   for(let c=0;c<=COLS;c++){bgCtx.beginPath();bgCtx.moveTo(c*BLOCK,0);bgCtx.lineTo(c*BLOCK,H);bgCtx.stroke();}
   for(let r=0;r<=ROWS;r++){bgCtx.beginPath();bgCtx.moveTo(0,r*BLOCK);bgCtx.lineTo(W,r*BLOCK);bgCtx.stroke();}
 }
-
-// ─── Next 미리보기 ────────────────────────────────────────────────────────────
 function drawNext(){
-  nxtCtx.clearRect(0,0,80,44);
-  if(!nextPiece) return;
-  const sh=nextPiece.shape,bs=18;
-  const bx=Math.floor((4-sh[0].length)/2)*bs+4;
-  const by=Math.floor((2-sh.length)/2)*bs+4;
+  nxtCtx.clearRect(0,0,72,40);if(!nextPiece)return;
+  const sh=nextPiece.shape,bs=16;
+  const bx=Math.floor((4-sh[0].length)/2)*bs+4,by=Math.floor((2-sh.length)/2)*bs+4;
   for(let r=0;r<sh.length;r++) for(let c=0;c<sh[r].length;c++) if(sh[r][c]){
     const px=bx+c*bs,py=by+r*bs;
     const g=nxtCtx.createLinearGradient(px,py,px+bs,py+bs);
     g.addColorStop(0,lighten(nextPiece.color,50));g.addColorStop(1,darken(nextPiece.color,25));
     nxtCtx.fillStyle=g;nxtCtx.beginPath();roundRect(nxtCtx,px+1,py+1,bs-2,bs-2,3);nxtCtx.fill();
-    nxtCtx.fillStyle='rgba(255,255,255,0.15)';nxtCtx.beginPath();roundRect(nxtCtx,px+2,py+2,bs-6,(bs-6)*0.38,2);nxtCtx.fill();
+    nxtCtx.fillStyle='rgba(255,255,255,0.15)';nxtCtx.beginPath();roundRect(nxtCtx,px+2,py+2,bs-5,(bs-5)*0.38,2);nxtCtx.fill();
   }
 }
-
-// ─── 메인 렌더 ───────────────────────────────────────────────────────────────
 function draw(){
+  if(!ctx)return;
   ctx.save();ctx.translate(shakeX,shakeY);
   ctx.clearRect(-shakeAmt-1,-shakeAmt-1,W+shakeAmt*2+2,H+shakeAmt*2+2);
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(board[r][c]) drawBlock(ctx,c,r,board[r][c]);
@@ -584,28 +534,25 @@ function draw(){
     const gy=ghostY();
     if(gy!==curY) for(let r=0;r<cur.shape.length;r++) for(let c=0;c<cur.shape[r].length;c++)
       if(cur.shape[r][c]) drawBlock(ctx,curX+c,gy+r,cur.color,1,true);
+    for(let r=0;r<cur.shape.length;r++) for(let c=0;c<cur.shape[r].length;c++)
+      if(cur.shape[r][c]) drawBlock(ctx,curX+c,curY+r,cur.color);
   }
-  if(gameRunning&&cur) for(let r=0;r<cur.shape.length;r++) for(let c=0;c<cur.shape[r].length;c++)
-    if(cur.shape[r][c]) drawBlock(ctx,curX+c,curY+r,cur.color);
   ctx.restore();
 }
 
-// ─── 게임 루프 ────────────────────────────────────────────────────────────────
-let prevTime=0;
+// ── 루프 ────────────────────────────────────────────────────────────────
 function loop(ts){
-  const dt=ts-prevTime;prevTime=ts;
+  if(!bgCtx){requestAnimationFrame(loop);return;}
   drawBg();
   if(gameRunning&&!gamePaused){
     dropInterval=Math.max(100,800-(level-1)*60);
     if(ts-lastDrop>dropInterval){softDrop();lastDrop=ts;}
-    if(flashTimer>0) flashTimer--;
+    if(flashTimer>0)flashTimer--;
   }
-  updateParticles();updateShake();updateFlash();
-  draw();
+  updateParticles();updateShake();updateFlash();draw();
   fxCtx.clearRect(0,0,W,H);
   if(flashRows.length&&flashTimer>0){
-    const a=flashTimer/12;
-    fxCtx.save();fxCtx.globalAlpha=a*0.65;
+    const a=flashTimer/12;fxCtx.save();fxCtx.globalAlpha=a*0.65;
     for(const r of flashRows){
       const gr=fxCtx.createLinearGradient(0,r*BLOCK,W,r*BLOCK);
       gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(0.5,'rgba(255,255,100,1)');gr.addColorStop(1,'rgba(255,255,255,0)');
@@ -618,70 +565,51 @@ function loop(ts){
   requestAnimationFrame(loop);
 }
 
-// ─── 키보드 입력 ─────────────────────────────────────────────────────────────
+// ── 오버레이 탭 → 시작 ────────────────────────────────────────────────
+document.getElementById('overlay').addEventListener('click',e=>{
+  if(e.target.id==='ov-change-mode')return;
+  if(!gameRunning&&ctrlMode)newGame();
+});
+
+// ── 키보드 ────────────────────────────────────────────────────────────
 let dasDir=0,dasTimer=null;
 document.addEventListener('keydown',e=>{
-  if(!gameRunning||gamePaused){
-    if(e.code==='Space'||e.code==='Enter'){if(!gameRunning){newGame();return;}}
-    if(e.code==='KeyP'&&gameRunning){gamePaused=!gamePaused;return;}
-    return;
-  }
-  if(e.repeat) return;
+  if(!gameRunning){if((e.code==='Space'||e.code==='Enter')&&ctrlMode)newGame();return;}
+  if(gamePaused){if(e.code==='KeyP')gamePaused=false;return;}
+  if(e.repeat)return;
   switch(e.code){
-    case'ArrowLeft': moveLeft();startKbDAS(-1);break;
+    case'ArrowLeft':moveLeft();startKbDAS(-1);break;
     case'ArrowRight':moveRight();startKbDAS(1);break;
-    case'ArrowDown': softDrop();break;
+    case'ArrowDown':softDrop();break;
     case'ArrowUp':case'KeyZ':tryRotate();break;
     case'Space':e.preventDefault();hardDrop();break;
     case'KeyP':gamePaused=!gamePaused;break;
   }
 });
-document.addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='ArrowRight') stopKbDAS();});
+document.addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='ArrowRight')stopKbDAS();});
 function startKbDAS(dir){
   stopKbDAS();dasDir=dir;
-  dasTimer=setTimeout(function repeat(){
-    if(dasDir===-1)moveLeft();else moveRight();
-    dasTimer=setTimeout(repeat,45);
-  },150);
+  dasTimer=setTimeout(function rep(){if(dasDir===-1)moveLeft();else moveRight();dasTimer=setTimeout(rep,45);},150);
 }
 function stopKbDAS(){if(dasTimer){clearTimeout(dasTimer);dasTimer=null;}dasDir=0;}
 
-// ─── 오버레이 / 탭으로 시작 ──────────────────────────────────────────────────
-document.getElementById('overlay').addEventListener('click',()=>{if(!gameRunning)newGame();});
-
-// ─── 컨트롤 모드 전환 ─────────────────────────────────────────────────────────
-document.getElementById('tab-dpad').addEventListener('click',()=>setCtrlMode('dpad'));
-document.getElementById('tab-touch').addEventListener('click',()=>setCtrlMode('touch'));
-
-function setCtrlMode(mode){
-  ctrlMode=mode;
-  document.getElementById('tab-dpad').classList.toggle('active',mode==='dpad');
-  document.getElementById('tab-touch').classList.toggle('active',mode==='touch');
-  document.getElementById('ctrl-dpad-panel').style.display=mode==='dpad'?'flex':'none';
-  document.getElementById('ctrl-touch-panel').style.display=mode==='touch'?'block':'none';
-}
-
-// ─── D-PAD 버튼 이벤트 ───────────────────────────────────────────────────────
-const BTN_ACTIONS = {
-  'btn-left' : {fn:moveLeft,  repeat:true,  delay:150, interval:50},
-  'btn-right': {fn:moveRight, repeat:true,  delay:150, interval:50},
-  'btn-up'   : {fn:softDrop,  repeat:true,  delay:120, interval:40},
-  'btn-soft' : {fn:softDrop,  repeat:true,  delay:80,  interval:35},
-  'btn-rot'  : {fn:tryRotate, repeat:false, delay:0,   interval:0},
-  'btn-drop' : {fn:hardDrop,  repeat:false, delay:0,   interval:0},
+// ── D-PAD 버튼 ────────────────────────────────────────────────────────
+const BTN_ACTIONS={
+  'btn-left':{fn:moveLeft,repeat:true,delay:150,interval:50},
+  'btn-right':{fn:moveRight,repeat:true,delay:150,interval:50},
+  'btn-up':{fn:softDrop,repeat:true,delay:120,interval:40},
+  'btn-soft':{fn:softDrop,repeat:true,delay:80,interval:35},
+  'btn-rot':{fn:tryRotate,repeat:false,delay:0,interval:0},
+  'btn-drop':{fn:hardDrop,repeat:false,delay:0,interval:0},
 };
 let btnTimers={};
-
 function btnPress(id){
-  if(!gameRunning||gamePaused) return;
-  const cfg=BTN_ACTIONS[id];if(!cfg) return;
-  cfg.fn();
-  document.getElementById(id)?.classList.add('pressed');
+  if(!gameRunning||gamePaused)return;
+  const cfg=BTN_ACTIONS[id];if(!cfg)return;
+  cfg.fn();document.getElementById(id)?.classList.add('pressed');
   if(cfg.repeat){
     btnTimers[id]=setTimeout(function rep(){
-      if(!gameRunning||gamePaused) return;
-      cfg.fn();
-      btnTimers[id]=setTimeout(rep,cfg.interval);
+      if(!gameRunning||gamePaused)return;cfg.fn();btnTimers[id]=setTimeout(rep,cfg.interval);
     },cfg.delay);
   }
 }
@@ -689,112 +617,52 @@ function btnRelease(id){
   if(btnTimers[id]){clearTimeout(btnTimers[id]);delete btnTimers[id];}
   document.getElementById(id)?.classList.remove('pressed');
 }
-
 Object.keys(BTN_ACTIONS).forEach(id=>{
-  const el=document.getElementById(id);
-  if(!el) return;
-  // touchstart
+  const el=document.getElementById(id);if(!el)return;
   el.addEventListener('touchstart',e=>{e.preventDefault();btnPress(id);},{passive:false});
-  el.addEventListener('touchend',  e=>{e.preventDefault();btnRelease(id);},{passive:false});
+  el.addEventListener('touchend',e=>{e.preventDefault();btnRelease(id);},{passive:false});
   el.addEventListener('touchcancel',e=>{btnRelease(id);},{passive:false});
-  // mouse (PC 테스트용)
-  el.addEventListener('mousedown', e=>{e.preventDefault();btnPress(id);});
-  el.addEventListener('mouseup',   e=>{btnRelease(id);});
+  el.addEventListener('mousedown',e=>{e.preventDefault();btnPress(id);});
+  el.addEventListener('mouseup',e=>{btnRelease(id);});
   el.addEventListener('mouseleave',e=>{btnRelease(id);});
 });
 
-// ─── 터치 제스처 (터치 모드) ──────────────────────────────────────────────────
-/*
-  검증된 Tetris 터치 방식:
-  - 탭 (< 200ms, 이동 < 12px)       → 회전
-  - 좌/우 스와이프                   → 이동 (거리/BLOCK 만큼 칸 수)
-  - 위 스와이프 (dy < -50)           → 하드드랍
-  - 아래 스와이프 (dy > 40)          → 소프트드랍 연속
-  - 길게 누르며 좌우 드래그 (DAS)   → 연속 이동
-*/
-let tStart={x:0,y:0,t:0};
-let tLastX=0, tMoved=false, tSoftActive=false;
-let tDasTimer=null, tDasDir=0;
-let tTotalMoveX=0;
-
-function getTouchTarget(e){
-  // 터치 모드에서는 canvas container 위에서만 처리
-  return e.target.closest('#canvas-container');
-}
-
-container.addEventListener('touchstart',e=>{
-  if(ctrlMode!=='touch') return;
-  e.preventDefault();
-  if(!gameRunning){newGame();return;}
-  if(gamePaused) return;
+// ── 터치 제스처 ───────────────────────────────────────────────────────
+let tStart={x:0,y:0,t:0},tLastX=0,tMoved=false,tSoftActive=false;
+let tDasTimer=null,tDasDir=0,tTotalMoveX=0;
+const cw=document.getElementById('canvas-wrap');
+cw.addEventListener('touchstart',e=>{
+  if(ctrlMode!=='touch')return;e.preventDefault();
+  if(!gameRunning){newGame();return;}if(gamePaused)return;
   const t=e.touches[0];
   tStart={x:t.clientX,y:t.clientY,t:Date.now()};
-  tLastX=t.clientX;tMoved=false;tSoftActive=false;tTotalMoveX=0;
-  stopTouchDAS();
+  tLastX=t.clientX;tMoved=false;tSoftActive=false;tTotalMoveX=0;stopTouchDAS();
 },{passive:false});
-
-container.addEventListener('touchmove',e=>{
-  if(ctrlMode!=='touch'||!gameRunning||gamePaused) return;
-  e.preventDefault();
-  const t=e.touches[0];
-  const dx=t.clientX-tLastX;
-  const totalDy=t.clientY-tStart.y;
-
-  // 가로 이동 (각 BLOCK*0.5 픽셀마다 한 칸)
+cw.addEventListener('touchmove',e=>{
+  if(ctrlMode!=='touch'||!gameRunning||gamePaused)return;e.preventDefault();
+  const t=e.touches[0],dx=t.clientX-tLastX,totalDy=t.clientY-tStart.y;
   if(Math.abs(dx)>=BLOCK*0.5){
-    const steps=Math.sign(dx);
-    if(steps>0) moveRight(); else moveLeft();
-    tLastX=t.clientX;
-    tMoved=true;
-    tTotalMoveX+=dx;
-    // DAS 시작
-    if(!tDasTimer) startTouchDAS(steps);
+    if(dx>0)moveRight();else moveLeft();
+    tLastX=t.clientX;tMoved=true;tTotalMoveX+=dx;
+    if(!tDasTimer)startTouchDAS(Math.sign(dx));
   }
-
-  // 소프트드랍 (아래로 드래그)
-  if(totalDy>BLOCK*0.6&&!tSoftActive){
-    tSoftActive=true;
-    softDrop();
-  }
+  if(totalDy>BLOCK*0.6&&!tSoftActive){tSoftActive=true;softDrop();}
 },{passive:false});
-
-container.addEventListener('touchend',e=>{
-  if(ctrlMode!=='touch') return;
-  e.preventDefault();
-  stopTouchDAS();
-  if(!gameRunning||gamePaused) return;
+cw.addEventListener('touchend',e=>{
+  if(ctrlMode!=='touch')return;e.preventDefault();stopTouchDAS();
+  if(!gameRunning||gamePaused)return;
   const t=e.changedTouches[0];
-  const totalDx=t.clientX-tStart.x;
-  const totalDy=t.clientY-tStart.y;
-  const dur=Date.now()-tStart.t;
-
-  // 탭 → 회전
-  if(!tMoved&&Math.abs(totalDx)<12&&Math.abs(totalDy)<12&&dur<220){
-    tryRotate();return;
-  }
-  // 위 스와이프 → 하드드랍
-  if(totalDy<-Math.max(50,BLOCK*1.2)&&Math.abs(totalDy)>Math.abs(totalDx)){
-    hardDrop();return;
-  }
+  const totalDx=t.clientX-tStart.x,totalDy=t.clientY-tStart.y,dur=Date.now()-tStart.t;
+  if(!tMoved&&Math.abs(totalDx)<12&&Math.abs(totalDy)<12&&dur<220){tryRotate();return;}
+  if(totalDy<-Math.max(50,BLOCK*1.2)&&Math.abs(totalDy)>Math.abs(totalDx)){hardDrop();return;}
 },{passive:false});
-
 function startTouchDAS(dir){
   stopTouchDAS();tDasDir=dir;
   tDasTimer=setTimeout(function rep(){
-    if(!gameRunning||gamePaused) return;
-    if(tDasDir>0) moveRight(); else moveLeft();
-    tDasTimer=setTimeout(rep,45);
+    if(!gameRunning||gamePaused)return;if(tDasDir>0)moveRight();else moveLeft();tDasTimer=setTimeout(rep,45);
   },180);
 }
-function stopTouchDAS(){
-  if(tDasTimer){clearTimeout(tDasTimer);tDasTimer=null;}
-  tDasDir=0;
-}
-
-// ─── 시작 ────────────────────────────────────────────────────────────────────
-initBgStars();
-lastDrop=performance.now();
-requestAnimationFrame(loop);
+function stopTouchDAS(){if(tDasTimer){clearTimeout(tDasTimer);tDasTimer=null;}tDasDir=0;}
 </script>
 </body>
 </html>
